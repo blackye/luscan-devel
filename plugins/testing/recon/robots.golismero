@@ -1,0 +1,8 @@
+[Documentation]
+Name        = Robots.txt Analyzer
+Description = Analyzes robots.txt files and extracts their links.
+Author      = GoLismero project team
+Version     = 0.1
+Website     = https://github.com/golismero
+Copyright   = Copyright (C) 2011-2014 GoLismero Project
+License     = GNU Public License v2

@@ -1,0 +1,21 @@
+[Documentation]
+Name        = Bruteforce prefixes discovery
+Description = Tries to discover hidden files by bruteforcing prefixes:
+              www.site.com/index.php -> www.site.com/~index.php
+Author      = GoLismero project team
+Version     = 0.1
+Website     = https://github.com/golismero
+Copyright   = Copyright (C) 2011-2014 GoLismero Project
+License     = GNU Public License v2
+
+[Core]
+Module = brute_url.py
+Class  = PrefixesDisclosureBruteforcer
+
+#
+# Prefixes
+#
+
+[common_prefixes]
+w1 = golismero/Discovery/FilenameBruteforce/file-prefix.txt
+w2 = fuzzdb/Discovery/FilenameBruteforce/copy_of.fuzz.txt

@@ -1,0 +1,22 @@
+[Documentation]
+Name        = OpenVAS
+Description = Integration with OpenVAS: http://www.openvas.org/
+Author      = GoLismero project team
+Version     = 0.1
+Website     = https://github.com/golismero
+Copyright   = Copyright (C) 2011-2014 GoLismero Project
+License     = GNU Public License v2
+
+[Core]
+Module = openvas.py
+Class  = OpenVASPlugin
+
+[Arguments]
+profile      = Full and fast
+user         = admin
+*password    = admin
+host         =
+port         = 9390
+timeout      = 30
+import_log   = no
+import_debug = no

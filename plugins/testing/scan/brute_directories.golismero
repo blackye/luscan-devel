@@ -1,0 +1,13 @@
+[Documentation]
+Name        = Bruteforce directories discovery
+Description = Tries to discover hidden folders by brute force:
+              www.site.com/folder/ -> www.site.com/folder2 www.site.com/folder3 ...
+Author      = GoLismero project team
+Version     = 0.1
+Website     = https://github.com/golismero
+Copyright   = Copyright (C) 2011-2014 GoLismero Project
+License     = GNU Public License v2
+
+[Core]
+Module = brute_url.py
+Class  = DirectoriesDisclosureBruteforcer
