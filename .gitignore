@@ -71,4 +71,4 @@ plugins/report/html_report/js/database.js
 htmlcov/
 
 #policy files
-policy/
+/policy
