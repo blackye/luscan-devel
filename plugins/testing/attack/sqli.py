@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+__author__ = 'BlackYe.'
 
 from golismero.api.config import Config
 from golismero.api.data.information.html import HTML
@@ -11,22 +12,45 @@ from golismero.api.data.resource.url import URL
 from golismero.api.logger import Logger
 from golismero.api.net import NetworkException
 from golismero.api.net.scraper import extract_from_html, extract_from_text, extract_forms_from_html
-from golismero.api.net.web_utils import download, parse_url, argument_query, download
+from golismero.api.net.web_utils import download, parse_url, argument_query, download, get_request
 from golismero.api.plugin import TestingPlugin
 from golismero.api.text.wordlist import WordListLoader
 from golismero.api.text.text_utils import to_utf8
+from golismero.api.net.web_mutants import payload_muntants
 
 from traceback import format_exc
 from warnings import warn
 
+from copy import copy
+from random import randint, shuffle
+import time
+
 from urllib import quote, quote_plus, unquote, unquote_plus
 from scan_policy import sql_inject_detect_err_msg_test_cases
+from scan_policy import sql_inject_detect_boolean_test_cases
+from scan_policy import sql_inject_detect_echo_test_cases
+from scan_policy import sql_inject_detect_timing_test_cases
+
+from golismero.libs.bind_sql_inject.fuzzy_string_cmp import relative_distance_boolean
+from golismero.libs.bind_sql_inject.diff import diff
+
 try:
     import re2 as re
 except ImportError:
     import re
 else:
     re.set_fallback_notification(re.FALLBACK_WARNING)
+
+#TEST_SQL_TYPE = ['ERR_MSG_DETECT','ECHO_DETECT', "BOOLEAN_DETECT", "TIMING_DETECT"]
+TEST_SQL_TYPE = ['TIMING_DETECT']
+
+RSP_SHORT_DURATION = 2
+
+# 25% more/less than the original wait time
+DELTA_PERCENT = 1.25
+
+#time base seconds
+DELAY_SECONDS = [3, 4, 6, 2]
 
 #------------------------------------------------------------------------------
 class SqliPlugin(TestingPlugin):
@@ -46,62 +70,280 @@ class SqliPlugin(TestingPlugin):
         #    return
 
         m_url = info.url
-        m_url_parts = info.parsed_url
+
 
         # If file is a javascript, css or image, do not run
-        if info.parsed_url.extension[1:] in ('css', 'js', 'jpeg', 'jpg', 'png', 'gif', 'svg', 'txt') or not m_url_parts.extension:
-            Logger.log_more_verbose("Skipping URL: %s" % m_url)
+
+        if info.parsed_url.extension[1:] in ('css', 'js', 'jpeg', 'jpg', 'png', 'gif', 'svg', 'txt') or ( not info.has_url_params and not info.has_post_params):
+            Logger.log_verbose("Skipping URL: %s" % m_url)
             return
 
         m_return = []
 
         m_url = info.url
+        b_continue = True
+        m_source_url = []
+        target = None
 
         if info.has_url_params:
-            print '------'
-            print 'get'
-            print info.url, info.url_params
-            for k,v in info.url_params.iteritems():
-                key = to_utf8(k)
-                value = to_utf8(v)
-                for test_case_dict in sql_inject_detect_err_msg_test_cases:
-                    info.url_params[key] = value + test_case_dict['input']
-                    url_data = '&'.join(
-                    '%s=%s' % ( quote(k, safe=''), quote(v, safe='') )
-                    for (k, v) in sorted(info.url_params.iteritems())
-                    )
-                    __ = parse_url(info.url)
-                    uri = __.scheme + '://' + __.host + ":" + str(__.port) + __.path + "?" + url_data
-                    m_resource_url_payload = URL(url = uri, method = 'GET', referer = info.referer)
-                    self.__get_request(m_resource_url_payload, test_case_dict['target'])
-            print '******'
+            print "GET"
+            #param_dict = info.url_params
+
+            for test_type in TEST_SQL_TYPE:
+            #self.deal_param_payload(test_type, info.url, param_dict, method = info.method, referer = info.referer)
+                self.deal_param_payload(test_type, info, method = 'GET')
+
 
         if info.has_post_params:
             print 'POST'
-            print info.url, info.post_params
+            #print info.url, info.post_params
+            #param_dict = info.post_params
+
+            for test_type in TEST_SQL_TYPE:
+                #self.deal_param_payload(test_type, info.url, param_dict, method = info.method, referer = info.referer)
+                self.deal_param_payload(test_type, info, method = 'POST')
 
 
 
         # Send the results
         return m_return
 
-    def request_payload(self, url, get_param, post_param, method = 'GET'):
+
+    def deal_param_payload(self, sql_detect_type, url, method = 'GET',  **kwargs):
+        '''
+        insert payload into param
+        :return:
+        '''
+
+        if not isinstance(sql_detect_type, str):
+            raise TypeError("Expected sql_detect_type string, type:%s" % type(sql_detect_type))
+
+        #if not isinstance(req_uri, str):
+        #    raise TypeError("Expected req_uri string, type:%s" % type(req_uri))
+
+        #if not isinstance(param_dict, dict):
+        #    raise TypeError("Expected param_dict string, type:%s" % type(param_dict))
+
+        if method == 'GET':
+            param_dict = url.url_params
+        elif method == 'POST':
+            param_dict = url.post_params
+
+
+        is_timing_stable = True
+        short_duration = 1
+
+        def __check_if_rsp_stable_on_orig_input():
+            p = get_request(url = url, allow_redirects=False)
+            if p.status != 200:
+                is_timing_stable = False
+
+            orig_first_time       = p.elapsed
+            orig_first_resp_body  = p.data
+
+            time.sleep(2)
+
+            p = get_request(url = url, allow_redirects=False)
+            if p.status != 200:
+                is_timing_stable = False
+
+            orig_second_time        = p.elapsed
+            orig_second_resp_body   = p.data
+
+            min_resp_time = min(orig_first_time, orig_second_time)
+            max_resp_time = max(orig_first_time, orig_second_time)
+
+            short_duration = max(RSP_SHORT_DURATION, max_resp_time) + 1
+            long_duration  = short_duration * 2
+
+            if (max_resp_time - min_resp_time) > short_duration:
+                is_timing_stable = False
+            else:
+                is_timing_stable = True
+
+            if orig_first_resp_body != orig_second_resp_body:
+                is_timing_stable = False
+
+
+        def __check_if_rsp_stable_on_invalid_input():
+            #TODO judge url is stable
+            is_timing_stable = True
+
+        #__check_if_rsp_stable_on_orig_input()
+
+        if sql_detect_type == "ERR_MSG_DETECT":
+            for k,v in param_dict.iteritems():
+
+                key = to_utf8(k)
+                value = to_utf8(v)
+
+                for test_case_dict in sql_inject_detect_err_msg_test_cases:
+                    '''
+                    payload_param_dict = copy(param_dict)
+                    payload_param_dict[key] = value + test_case_dict['input']
+                    __ = parse_url(req_uri)
+                    m_resource_url_payload = URL(url = __.request_cgi, method = method, referer = referer, url_params= payload_param_dict)
+                    if self._err_msg_sql_detect(self.__get_request(m_resource_url_payload), test_case_dict['target']):
+                        print '[+] found sql inject in url:{0}, payload:{1}'.format(req_uri, payload_param_dict)
+                        return True
+                    '''
+
+                    p = payload_muntants(url, payload = {'k': k , 'pos': 1, 'payload':test_case_dict['input'], 'type': 0}, bmethod = method)
+                    if self._err_msg_sql_detect(p, test_case_dict['target']):
+                        #print '[+] found sql inject in url:{0}, payload:{1}'.format(req_uri, payload_param_dict)
+                        print '[+] found sql inject!'
+                        return True
+
+        elif sql_detect_type == "ECHO_DETECT":
+            self._echo_sql_detect()
+
+        elif sql_detect_type == "BOOLEAN_DETECT":
+            for k, v in param_dict.iteritems():
+
+                key = to_utf8(k)
+                value = to_utf8(v)
+
+                self._boolean_sql_detect(k = key, v = value , url = url, method = method)
+        elif sql_detect_type == "TIMING_DETECT":
+            if is_timing_stable == True:
+                for k, v in param_dict.iteritems():
+
+                    key = to_utf8(k)
+                    value = to_utf8(v)
+                    if self._timing_sql_detect(k = k, v = value, url = url, method = method, short_duration = short_duration):
+                        print '[+] found time_based sql inject!'
+
+
+    def _err_msg_sql_detect(self, response_mutants, sql_err_re):
+        '''
+        sql报错注入
+        :return:
+        '''
+
+        if response_mutants.data is not None:
+            __ = re.search(sql_err_re, response_mutants.data)
+            if __ is not None:
+                return True
+
+        return False
+
+
+    def _echo_sql_detect(self, **kwargs):
+        '''
+        echo 测试
+        :return:
+        '''
         pass
 
-    def __get_request(self, url, test_case_re):
-        print url
-        try:
-            p = download(url, None,
-                         allow_redirects=False)
+    def _boolean_sql_detect(self, **kwargs):
+        '''
+        bool 型注入探测（盲注）
+        :return:
+        '''
+        k = kwargs.get("k", None)
+        if k is None or not isinstance(k, str):
+            raise ValueError("Except param has not key!")
 
-            print '*******'
-            print url.url_params
-            __ = re.search(test_case_re, p.raw_data)
-            if __ is not None:
-                print '[+] find sql inject in url {0}, param {1}'.format(url.url, url.url_params)
-        except NetworkException, e:
-            Logger.log_error_verbose("Error while processing %r: %s" % (url, str(e)))
-            return None
+        v = kwargs.get("v", None)
+
+        url = kwargs.get("url", None)
+        if url is None or not isinstance(url, URL):
+            raise ValueError("Except param has not req_uri")
+
+        method = kwargs.get('method', None)
+        #TODO method str
+
+
+        for boolean_test_case_dict in sql_inject_detect_boolean_test_cases:
+            rand_num = randint(10, 9999)
+            true_case = boolean_test_case_dict['true_case'].replace("val", str(v)).replace("num", str(rand_num))
+            false_case = boolean_test_case_dict['false_case'].replace("val", str(v)).replace("num", str(rand_num))
+            confirm_true_case = boolean_test_case_dict['confirm_true_case'].replace("val", str(v)).replace("num", str(rand_num))
+            confirm_false_case = boolean_test_case_dict['confirm_false_case'].replace("val", str(v)).replace("num", str(rand_num))
+
+            body_true_response = payload_muntants(url_info = url, payload = {'k': k , 'pos': 1, 'payload':true_case, 'type': 1}, bmethod = method).data
+            body_false_response = payload_muntants(url_info = url, payload = {'k': k , 'pos': 1, 'payload':false_case, 'type': 1}, bmethod = method).data
+
+            if body_true_response == body_false_response:
+                continue
+
+            compare_diff = False
+            print 'Comparing body_true_response and body_false_response.'
+            if self.__equal_with_limit(body_true_response, body_false_response,
+                                 compare_diff):
+
+                compare_diff = True
+
+            body_confirm_true_response = payload_muntants(url_info = url, payload = {'k': k , 'pos': 1, 'payload':confirm_true_case, 'type': 1}, bmethod = method).data
+            body_confirm_false_response = payload_muntants(url_info = url, payload = {'k': k , 'pos': 1, 'payload':confirm_false_case, 'type': 1}, bmethod = method).data
+
+            if self.__equal_with_limit(body_true_response,
+                                 body_confirm_false_response,
+                                 compare_diff):
+                continue
+
+            if not self.__equal_with_limit(body_confirm_true_response,
+                                     body_true_response,
+                                     compare_diff):
+                continue
+
+            if self.__equal_with_limit(body_confirm_false_response,
+                                 body_false_response,
+                                 compare_diff):
+                print '[+] found boolean sql inject!'
+                return True
+
+        return False
+
+
+
+    def _timing_sql_detect(self, **kwargs):
+        '''
+        延时注入(盲注)
+        :return:
+        '''
+
+
+        k = kwargs.get("k", None)
+        if k is None or not isinstance(k, str):
+            raise ValueError("Except param has not key!")
+
+        v = kwargs.get("v", None)
+
+        url = kwargs.get("url", None)
+        if url is None or not isinstance(url, URL):
+            raise ValueError("Except param has not req_uri")
+
+        method = kwargs.get('method', None)
+        short_duration = kwargs.get('short_duration', None)
+        print 'short_duration:{0}'.format(short_duration)
+
+        rand_str = str(randint(90000, 99999))
+
+        for timing_test_case_dict in sql_inject_detect_timing_test_cases:
+        #if timing_test_case_dict is not None:
+
+            def delay_for(original_wait_time, delay):
+                time_payload = timing_test_case_dict['input'].replace("rndstr", rand_str).replace('duration', str(delay)).replace('val', v)
+
+                delta = original_wait_time * DELTA_PERCENT
+                upper_bound = (delay * 2) + original_wait_time + delta
+                lower_bound = original_wait_time + delay - delta
+
+                current_response_wait_time = payload_muntants(url_info = url, payload = {'k': k , 'pos': 1, 'payload':time_payload, 'type': 1}, bmethod = method).elapsed
+                if upper_bound > current_response_wait_time > lower_bound:
+                    return True
+
+            def get_original_time():
+                p = get_request(url = url, allow_redirects=False)
+                return p.elapsed
+
+            shuffle(DELAY_SECONDS)
+            for delay in DELAY_SECONDS:
+                if not delay_for(get_original_time(), delay):
+                    continue
+
+        return True
 
 
      #--------------------------------------------------------------------------
@@ -111,3 +353,15 @@ class SqliPlugin(TestingPlugin):
         print name
         print content_length
         print content_type
+
+
+    def __equal_with_limit(self, body1, body2, compare_diff=False):
+        """
+        Determines if two pages are equal using a ratio.
+        """
+        if compare_diff:
+            body1, body2 = diff(body1, body2)
+
+        cmp_res = relative_distance_boolean(body1, body2, 0.8)
+
+        return cmp_res

@@ -40,11 +40,11 @@ __all__ = [
 #------------------------------------------------------------------------------
 # Metadata
 
-__author__     = "GoLismero project team"
-__copyright__  = "Copyright (C) 2011-2014 GoLismero Project"
+__author__     = "BlackYe"
+__copyright__  = "Author By BlackYe."
 __credits__    = ["GoLismero Project Team"]
-__email__      = "contact@golismero-project.com"
-__version__    = "2.0.0b6"
+__email__      = "363612366@qq.com"
+__version__    = "0.1"
 
 
 #------------------------------------------------------------------------------
@@ -54,7 +54,7 @@ def get_banner():
     :rtype: str
     """
     banner_lines = [
-        "GoLismero %s, The Web Knife" % __version__,
+        "LuScan %s, vulnerability scanner" % __version__,
         __copyright__,
         "",
         "Contact: " + __email__,

@@ -295,7 +295,6 @@ class AuditScope (AbstractScope):
                         ##raise  # XXX DEBUG
                         url = None
                     if url is not None:
-
                         # Keep the URL.
                         self.__web_pages.add(url)
 

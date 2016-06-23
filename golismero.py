@@ -602,7 +602,6 @@ def main():
         "LOAD":     command_load,     # Load a database dump and quit.
         "UPDATE":   command_update,   # Update GoLismero and quit.
     }
-
     # Parse the command line.
     parser, P, cmdParams, auditParams = build_config_from_cmdline()
 

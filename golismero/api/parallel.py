@@ -266,7 +266,7 @@ def pmap(func, *args, **kwargs):
         raise TypeError("Expected at least one positional argument")
 
     # Get the pool size.
-    pool_size = kwargs.pop("pool_size", 4)
+    pool_size = kwargs.pop("pool_size", 10)
 
     # Check for extraneous keyword arguments.
     if kwargs:

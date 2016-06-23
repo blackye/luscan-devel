@@ -317,6 +317,7 @@ def download(url, callback = None, timeout = 10.0, allow_redirects = True,
             return callback(url, name, content_length, content_type)
 
     # Send the request and get the response.
+
     from .http import HTTP
     response = HTTP.make_request(request,
                                  callback = temp_callback,
@@ -342,6 +343,80 @@ def download(url, callback = None, timeout = 10.0, allow_redirects = True,
 
         # Return the data.
         return data
+
+#---------------------------------------------------
+# Add By BlackYe
+#TODO fix
+def get_request(url, timeout = 10.0, allow_redirects = True,
+             allow_out_of_scope = False):
+    """
+    request the given URL.
+
+    :param url: URL to download.
+    :type url: Url
+
+    :param timeout: Timeout in seconds.
+            The minimum value is 0.5 and the maximum is 100.0. Any other values
+            will be silently converted to either one of them.
+    :type timeout: int | float
+
+    :param allow_redirects: True to follow redirections, False otherwise.
+    :type allow_redirects: bool
+
+    :param allow_out_of_scope: True to allow download of URLs out of scope,
+                               False otherwise.
+    :type allow_out_of_scope: bool
+
+    :returns: Downloaded data as an object of the GoLismero data model,
+              or None if cancelled.
+    :rtype: File | None
+
+    :raises NetworkOutOfScope: The resource is out of the audit scope.
+    :raises NetworkException: A network error occurred during download.
+    :raises NotImplementedError: The network protocol is not supported.
+    """
+
+    # Autogenerate an URL object if a string is given (common mistake).
+    from ..data.resource.url import URL
+    if not isinstance(url, URL):
+        url = URL(url)
+        LocalDataCache.on_autogeneration(url)
+        parsed = url.parsed_url
+        if not parsed.hostname or not parsed.scheme:
+            raise ValueError("Only absolute URLs must be used!")
+
+    # Validate the protocol.
+    # TODO: add support for FTP
+    scheme = url.parsed_url.scheme
+    if scheme not in ("http", "https"):
+        raise NotImplementedError("Protocol not supported: %s" % scheme)
+
+    # Validate the scope.
+    if not url.is_in_scope() and allow_out_of_scope is False:
+        raise NetworkOutOfScope("URL out of scope: %s" % url.url)
+
+    # Autogenerate the HTTP request object.
+    from ..config import Config
+    from ..data.information.http import HTTP_Request
+    request = HTTP_Request( url         = url.url,
+                            method      = url.method,
+                            post_data   = url.post_params,
+                            referer     = url.referer,
+                            user_agent  = Config.audit_config.user_agent)
+    LocalDataCache.on_autogeneration(request)
+
+    # Send the request and get the response.
+
+    from .http import HTTP
+    response = HTTP.make_request(request,
+                                 callback = None,
+                                 timeout = timeout,
+                                 use_cache = False,
+                                 allow_redirects = allow_redirects,
+                                 allow_out_of_scope = allow_out_of_scope)
+
+    return response
+
 
 
 #------------------------------------------------------------------------------
@@ -876,6 +951,7 @@ class ParsedURL (object):
 
         # Find the earliest Authority Terminator
         # (http://tools.ietf.org/html/rfc3986#section-3.2)
+
         url, path_, delim = split_first(url, ['/', '?', '#'])
 
         if delim:
@@ -1326,6 +1402,14 @@ class ParsedURL (object):
         if path == '/' and self.__scheme == 'mailto':
             path = ''
         self.__path = path
+
+    #-------Add By BlackYe. 请求的cgi
+    @property
+    def request_cgi(self):
+        if self.port != 80:
+            return self.scheme + '://' + self.host + ":" + str(self.port) + self.path
+        else:
+            return self.scheme + '://' + self.host + self.path
 
     @property
     def fragment(self):

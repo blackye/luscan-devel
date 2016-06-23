@@ -174,7 +174,7 @@ class URL(_AbstractURL):
 
 
     #--------------------------------------------------------------------------
-    def __init__(self, url, method = "GET", post_params = None, referer = None):
+    def __init__(self, url, method = "GET", post_params = None, referer = None, **kwargs):
         """
         :param url: Absolute URL.
         :type url: str
@@ -221,6 +221,21 @@ class URL(_AbstractURL):
         else:
             post_data   = None
             post_params = None
+
+            # Checks for get param
+            url_params = kwargs.get('url_params', None)
+
+            if url_params is not None:
+                if hasattr(url_params, "iteritems"):
+                    url_params = {
+                        to_utf8(k): to_utf8(v) for k, v in url_params.iteritems()
+                    }
+                    query_param = '&'.join(
+                        '%s=%s' % ( quote(k, safe=''), quote(v, safe='') )
+                        for (k, v) in sorted(url_params.iteritems())
+                    )
+                    url = url + '?' + query_param
+                    print url
 
         # Save the properties.
         self.__method      = method

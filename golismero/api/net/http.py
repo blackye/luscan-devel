@@ -284,10 +284,11 @@ class _HTTP(Singleton):
                 )
                 t2 = time()
             except RequestException, e:
+                print 'error!! requests'
+                print str(e)
                 raise NetworkException(str(e))
 
             try:
-
                 # Get the response properties.
                 url = resp.url
                 status_code  = str(resp.status_code)
