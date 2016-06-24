@@ -429,7 +429,7 @@ class HTTP_Request (Capture):
 
 
     # Default user agent string.
-    DEFAULT_USER_AGENT = "Mozilla/5.0 (compatible, GoLismero/2.0 The Web Knife; +https://github.com/golismero/golismero)"
+    DEFAULT_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36 luscan"
 
     # Default headers to use in HTTP requests.
     DEFAULT_HEADERS = (

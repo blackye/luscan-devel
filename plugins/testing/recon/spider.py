@@ -13,6 +13,7 @@ from golismero.api.net.scraper import extract_from_html, extract_from_text, extr
 from golismero.api.net.web_utils import download, parse_url, argument_query
 from golismero.api.plugin import TestingPlugin
 from golismero.api.text.wordlist import WordListLoader
+from golismero.api.text.text_utils import to_utf8
 
 from traceback import format_exc
 from warnings import warn
@@ -39,7 +40,20 @@ class Spider(TestingPlugin):
 
         m_url = info.url
 
-        __ = start_wvs_spider_dispatch(m_url, Logger)
+        cookie_param = None
+        cookie_dict = Config.audit_config.cookie
+
+        if cookie_dict != None:
+            if hasattr(cookie_dict, "iteritems"):
+                    cookie_params = {
+                        to_utf8(k): to_utf8(v) for k, v in cookie_dict.iteritems()
+                    }
+                    cookie_param = ';'.join(
+                        '%s=%s' % (k ,v) for (k, v) in sorted(cookie_params.iteritems())
+                    )
+
+        __ = start_wvs_spider_dispatch(m_url, cookie_param, Logger)
+
         json_content = json.loads(__)
 
         for urls in json_content['info']:

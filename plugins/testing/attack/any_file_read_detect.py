@@ -47,7 +47,21 @@ class AnyFileReadPlugin(TestingPlugin):
         m_return = []
 
         if info.has_url_params:
+
+            cookie_dict = Config.audit_config.cookie
+            print cookie_dict
+            if hasattr(cookie_dict, "iteritems"):
+                    cookie_params = {
+                        to_utf8(k): to_utf8(v) for k, v in cookie_dict.iteritems()
+                    }
+                    cookie_param = ';'.join(
+                        '%s=%s' % (k ,v) for (k, v) in sorted(cookie_params.iteritems())
+                    )
+
+            print cookie_param
             print "GET"
+
+            '''
             param_dict = info.url_params
             for k,v in param_dict.iteritems():
 
@@ -60,6 +74,7 @@ class AnyFileReadPlugin(TestingPlugin):
                     if __ is not None:
                         print '[+] found any file read!'
                         return m_return
+            '''
 
         if info.has_post_params:
             print 'POST'

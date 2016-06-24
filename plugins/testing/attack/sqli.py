@@ -86,7 +86,6 @@ class SqliPlugin(TestingPlugin):
 
         m_return = []
 
-        m_url = info.url
         b_continue = True
         m_source_url = []
         target = None
@@ -102,6 +101,7 @@ class SqliPlugin(TestingPlugin):
 
         if info.has_post_params:
             print 'POST'
+            print info.post_params
             #print info.url, info.post_params
             #param_dict = info.post_params
 
@@ -124,8 +124,8 @@ class SqliPlugin(TestingPlugin):
         if not isinstance(sql_detect_type, str):
             raise TypeError("Expected sql_detect_type string, type:%s" % type(sql_detect_type))
 
-        #if not isinstance(req_uri, str):
-        #    raise TypeError("Expected req_uri string, type:%s" % type(req_uri))
+        if not isinstance(url, URL):
+            raise TypeError("Expected url type, type:%s" % type(url))
 
         #if not isinstance(param_dict, dict):
         #    raise TypeError("Expected param_dict string, type:%s" % type(param_dict))

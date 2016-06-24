@@ -56,7 +56,7 @@ def payload_muntants(url_info, payload = {}, bmethod = 'GET', exclude_cgi_suffix
     if  bmethod == "GET":
         param_dict = copy(m_url_info.url_params)
     elif bmethod == "POST":
-        param_dict = copy(m_url_info.post_param)
+        param_dict = copy(m_url_info.post_params)
 
     if len(param_dict) == None and len(param_dict) == 0:
         return None
