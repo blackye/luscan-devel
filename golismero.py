@@ -314,7 +314,7 @@ def cmdline_parser():
     gr_report.add_argument("--brief", action="store_true", dest="only_vulns", help="report only the highlights")
 
     gr_net = parser.add_argument_group("network options")
-    gr_net.add_argument("--allow-subdomains", action="store_true", default=None, dest="include_subdomains", help="include subdomains in the target scope")
+    gr_net.add_argument("--allow-subdomains", action="store_true", default=False, dest="include_subdomains", help="include subdomains in the target scope")
     gr_net.add_argument("--forbid-subdomains", action="store_false", default=None, dest="include_subdomains", help="do not include subdomains in the target scope")
     gr_net.add_argument("--parent", action="store_true", default=None, dest="allow_parent", help="include parent folders in the target scope")
     gr_net.add_argument("-np", "--no-parent", action="store_false", default=None, dest="allow_parent", help="do not include parent folders in the target scope")

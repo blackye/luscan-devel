@@ -61,7 +61,7 @@ ORDER_BY_MD5_VAL = '59b874e05f47d8f295c63e0ed2578125'
 #------------------------------------------------------------------------------
 class SqliPlugin(TestingPlugin):
     """
-    This plugin is a web spider.
+    This plugin is a sql inject detect.
     """
 
 

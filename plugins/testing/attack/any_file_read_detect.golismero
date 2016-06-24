@@ -1,0 +1,6 @@
+[Documentation]
+Name        = any_file_read_detect Attack
+Description = read '/etc/passwd' and so on
+Author      = BlackYe
+Version     = 0.1
+Website     = https://github.com/Blackye
