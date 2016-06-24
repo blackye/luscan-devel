@@ -348,7 +348,7 @@ def download(url, callback = None, timeout = 10.0, allow_redirects = True,
 # Add By BlackYe
 #TODO fix
 def get_request(url, timeout = 10.0, allow_redirects = True,
-             allow_out_of_scope = False):
+             allow_out_of_scope = False, use_cache = None):
     """
     request the given URL.
 
@@ -411,7 +411,7 @@ def get_request(url, timeout = 10.0, allow_redirects = True,
     response = HTTP.make_request(request,
                                  callback = None,
                                  timeout = timeout,
-                                 use_cache = False,
+                                 use_cache = use_cache,
                                  allow_redirects = allow_redirects,
                                  allow_out_of_scope = allow_out_of_scope)
 

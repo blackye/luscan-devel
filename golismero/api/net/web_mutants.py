@@ -27,7 +27,7 @@ from golismero.api.text.text_utils import to_utf8
 from copy import copy
 
 def payload_muntants(url_info, payload = {}, bmethod = 'GET', exclude_cgi_suffix = ['css', 'js', 'jpeg', 'jpg', 'png', 'gif', 'svg', 'txt'],
-                     depth = 0 , bcheck_use_orig_body = True, req_header = {},
+                     use_cache = None, timeout = 10.0 , bcheck_use_orig_body = True, req_header = {},
                      resp_code = '200', resp_header = {}, **kwargs):
 
     '''
@@ -54,9 +54,9 @@ def payload_muntants(url_info, payload = {}, bmethod = 'GET', exclude_cgi_suffix
 
     m_url_info = copy(url_info)
     if  bmethod == "GET":
-        param_dict = m_url_info.url_params
+        param_dict = copy(m_url_info.url_params)
     elif bmethod == "POST":
-        param_dict = m_url_info.post_param
+        param_dict = copy(m_url_info.post_param)
 
     if len(param_dict) == None and len(param_dict) == 0:
         return None
@@ -85,7 +85,7 @@ def payload_muntants(url_info, payload = {}, bmethod = 'GET', exclude_cgi_suffix
         m_resource_url_payload = URL(url = __.request_cgi, method = m_url_info.method, referer = m_url_info.referer, post_params= param_dict)
 
     try:
-        p = get_request(url = m_resource_url_payload, allow_redirects=False)
+        p = get_request(url = m_resource_url_payload, allow_redirects=False, use_cache = use_cache, timeout = timeout)
         return p
 
     except NetworkException, e:
