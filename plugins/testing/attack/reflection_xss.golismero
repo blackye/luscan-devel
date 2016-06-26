@@ -1,0 +1,10 @@
+[Documentation]
+Name        = reflect xss
+Description = reflect xss plugin.
+
+Author      = BlackYe
+Version     = 0.1
+Website     = https://github.com/Blackye
+Copyright   = Copyright (C) 2011-2014 luscan Project
+License     = GNU Public License v2
+

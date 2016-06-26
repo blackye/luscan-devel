@@ -1,3 +1,4 @@
 docutils
 pymongo
 simplejson
+beautifulsoup4
