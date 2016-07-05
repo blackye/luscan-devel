@@ -184,15 +184,6 @@ class SqliPlugin(TestingPlugin):
                 value = to_utf8(v)
 
                 for test_case_dict in sql_inject_detect_err_msg_test_cases:
-                    '''
-                    payload_param_dict = copy(param_dict)
-                    payload_param_dict[key] = value + test_case_dict['input']
-                    __ = parse_url(req_uri)
-                    m_resource_url_payload = URL(url = __.request_cgi, method = method, referer = referer, url_params= payload_param_dict)
-                    if self._err_msg_sql_detect(self.__get_request(m_resource_url_payload), test_case_dict['target']):
-                        print '[+] found sql inject in url:{0}, payload:{1}'.format(req_uri, payload_param_dict)
-                        return True
-                    '''
 
                     p = payload_muntants(url, payload = {'k': k , 'pos': 1, 'payload':test_case_dict['input'], 'type': 0}, bmethod = method)
                     if self._err_msg_sql_detect(p, test_case_dict['target']):
@@ -242,7 +233,7 @@ class SqliPlugin(TestingPlugin):
         :return:
         '''
 
-        if response_mutants.data is not None:
+        if response_mutants is not None:
             __ = re.search(sql_err_re, response_mutants.data)
             if __ is not None:
                 return True
@@ -279,12 +270,18 @@ class SqliPlugin(TestingPlugin):
 
         p = get_request(url = url, allow_redirects = False)
 
-        if p.status != '200':
+        if p.status != '200' and p is None:
             return False
 
         orig_resp_body  = p.data
-        max_order_column_payload_rsp = payload_muntants(url_info = url, payload = {'k': k , 'pos': 1, 'payload':max_order_column_payload, 'type': 0}, bmethod = method).data
-        min_order_column_payload_rsp = payload_muntants(url_info = url, payload = {'k': k , 'pos': 1, 'payload':min_order_column_payload, 'type': 0}, bmethod = method).data
+
+        max_order_column_payload_rsp = None
+        min_order_column_payload_rsp = None
+        try:
+            max_order_column_payload_rsp = payload_muntants(url_info = url, payload = {'k': k , 'pos': 1, 'payload':max_order_column_payload, 'type': 0}, bmethod = method).data
+            min_order_column_payload_rsp = payload_muntants(url_info = url, payload = {'k': k , 'pos': 1, 'payload':min_order_column_payload, 'type': 0}, bmethod = method).data
+        except AttributeError:
+            return False
 
         if max_order_column_payload_rsp != None and min_order_column_payload_rsp != None and (orig_resp_body != max_order_column_payload_rsp) and (orig_resp_body == min_order_column_payload_rsp):
             #maybe exist sql_inject
@@ -293,7 +290,11 @@ class SqliPlugin(TestingPlugin):
                 #二分法
                 col = int(math.ceil( (lower_index + high_index) / 2))
                 column_payload = ' order by {0}--'.format(col)
-                column_payload_rsp = payload_muntants(url_info = url, payload = {'k': k , 'pos': 1, 'payload':column_payload, 'type': 0}, bmethod = method, use_cache = False).data
+                column_payload_rsp = None
+                try:
+                    column_payload_rsp = payload_muntants(url_info = url, payload = {'k': k , 'pos': 1, 'payload':column_payload, 'type': 0}, bmethod = method, use_cache = False).data
+                except AttributeError:
+                    pass
 
                 if column_payload_rsp != None and column_payload_rsp != orig_resp_body:
                     high_index = col
@@ -313,7 +314,11 @@ class SqliPlugin(TestingPlugin):
                 union_list = [x+1 for x in range(table_column)]
                 union_list[inject_index] = ORDER_BY_SIGN
                 union_payload = ' and 1=2 union select {0}'.format(','.join(map(str,union_list)))
-                union_payload_rsp = payload_muntants(url_info = url, payload = {'k': k , 'pos': 1, 'payload':union_payload, 'type': 0}, bmethod = method, use_cache = False).data
+                union_payload_rsp = None
+                try:
+                    union_payload_rsp = payload_muntants(url_info = url, payload = {'k': k , 'pos': 1, 'payload':union_payload, 'type': 0}, bmethod = method, use_cache = False).data
+                except AttributeError:
+                    pass
 
                 if union_payload_rsp != None and ORDER_BY_MD5_VAL in union_payload_rsp:
                     return True
@@ -356,8 +361,13 @@ class SqliPlugin(TestingPlugin):
             confirm_true_case = boolean_test_case_dict['confirm_true_case'].replace("val", str(v)).replace("num", str(rand_num))
             confirm_false_case = boolean_test_case_dict['confirm_false_case'].replace("val", str(v)).replace("num", str(rand_num))
 
-            body_true_response = payload_muntants(url_info = url, payload = {'k': k , 'pos': 1, 'payload':true_case, 'type': 1}, bmethod = method).data
-            body_false_response = payload_muntants(url_info = url, payload = {'k': k , 'pos': 1, 'payload':false_case, 'type': 1}, bmethod = method).data
+            body_true_response = None
+            body_false_response = None
+            try:
+                body_true_response = payload_muntants(url_info = url, payload = {'k': k , 'pos': 1, 'payload':true_case, 'type': 1}, bmethod = method).data
+                body_false_response = payload_muntants(url_info = url, payload = {'k': k , 'pos': 1, 'payload':false_case, 'type': 1}, bmethod = method).data
+            except AttributeError:
+                continue
 
             if body_true_response == body_false_response:
                 continue
@@ -369,8 +379,11 @@ class SqliPlugin(TestingPlugin):
 
                 compare_diff = True
 
-            body_confirm_true_response = payload_muntants(url_info = url, payload = {'k': k , 'pos': 1, 'payload':confirm_true_case, 'type': 1}, bmethod = method).data
-            body_confirm_false_response = payload_muntants(url_info = url, payload = {'k': k , 'pos': 1, 'payload':confirm_false_case, 'type': 1}, bmethod = method).data
+            try:
+                body_confirm_true_response = payload_muntants(url_info = url, payload = {'k': k , 'pos': 1, 'payload':confirm_true_case, 'type': 1}, bmethod = method).data
+                body_confirm_false_response = payload_muntants(url_info = url, payload = {'k': k , 'pos': 1, 'payload':confirm_false_case, 'type': 1}, bmethod = method).data
+            except AttributeError:
+                continue
 
             if self.__equal_with_limit(body_true_response,
                                  body_confirm_false_response,

@@ -284,8 +284,7 @@ class _HTTP(Singleton):
                 )
                 t2 = time()
             except RequestException, e:
-                print 'error!! requests'
-                print str(e)
+                #print str(e)
                 raise NetworkException(str(e))
 
             try:

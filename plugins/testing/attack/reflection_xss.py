@@ -17,6 +17,7 @@ from golismero.api.plugin import TestingPlugin
 from golismero.api.text.wordlist import WordListLoader
 from golismero.api.text.text_utils import to_utf8
 from golismero.api.net.web_mutants import payload_muntants
+from golismero.api.data.vulnerability.injection.xss import XSS
 
 from scan_policy import xss_reflection_detect_test_cases
 from random import randint
@@ -71,7 +72,19 @@ class ReflectionXSSPlugin(TestingPlugin):
                 value = to_utf8(v)
 
                 if self.xss_detect(m_url, method = 'GET', k = key, v = value):
-                    return m_return
+
+                    url = URL(url = m_url.url,
+                          method = 'GET',
+                          post_params = None,
+                          referer = m_url.referer)
+
+                    vul = XSS(url, vulnerable_params = {"injection":"xxxxxx"}, injection_point = XSS.INJECTION_POINT_URL, injection_type = "XSS")
+
+                    vul.description += "fuck"
+
+                    m_return.append(vul)
+                    break
+
                 #return m_return
 
         if info.has_post_params:

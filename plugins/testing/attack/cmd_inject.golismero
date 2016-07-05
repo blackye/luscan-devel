@@ -1,0 +1,6 @@
+[Documentation]
+Name        = any cmd execute Attack
+Description = exec 'dir|cat /etc/passwd' and so on
+Author      = BlackYe
+Version     = 0.1
+Website     = https://github.com/Blackye

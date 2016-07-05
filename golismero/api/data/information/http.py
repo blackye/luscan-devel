@@ -525,6 +525,7 @@ class HTTP_Request (Capture):
                 headers = headers + (("Referer", referer),)
             if user_agent:
                 headers = headers + (("User-Agent", user_agent),)
+            headers = headers + (("Connection" , "close"),)  #ADD By BlackYe. Deal Caused by NewConnectionError
             headers = HTTP_Headers.from_items(headers)
         elif not isinstance(headers, HTTP_Headers):
             headers = to_utf8(headers)

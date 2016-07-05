@@ -39,6 +39,9 @@ def start_wvs_spider_dispatch(target, cookie, Logger):
 	Logger.log_verbose('Waiting spider return content..........')
 	return wait_parse_result(keys)
 
+def test_start_wvs_spider_dispatch(keys):
+	return wait_parse_result(keys)
+
 def get_save_crawl_folder_name(domain):
 
 	if isinstance(domain, str):

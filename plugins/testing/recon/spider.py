@@ -19,6 +19,7 @@ from traceback import format_exc
 from warnings import warn
 
 from wvs_spider.run import start_wvs_spider_dispatch
+from wvs_spider.run import test_start_wvs_spider_dispatch
 import json
 
 #------------------------------------------------------------------------------
@@ -53,6 +54,7 @@ class Spider(TestingPlugin):
                     )
 
         __ = start_wvs_spider_dispatch(m_url, cookie_param, Logger)
+        #__  = test_start_wvs_spider_dispatch('www.bbktel.com.cn_d2cc49d948a8589628d260faa6ba41a4')
 
         json_content = json.loads(__)
 
@@ -65,6 +67,7 @@ class Spider(TestingPlugin):
                 post_param = item_url['param_data']
                 if "AcunetixBoundary_" in post_param:  #multipart/form-data
                     method = 'FILE_UPLOAD'
+                    print method
                 else:
                     method = item_url['method']
 
