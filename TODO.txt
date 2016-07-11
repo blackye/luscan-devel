@@ -15,4 +15,4 @@ Plugins
 - Metasploit: https://github.com/cr0hn/golismero/issues/91
 - ZAP Proxy: https://github.com/cr0hn/golismero/issues/81
 - Directory listing: https://github.com/cr0hn/golismero/issues/36
-- SQLMap (improvements): https://github.com/cr0hn/golismero/issues/10
+- Bind cmd inject

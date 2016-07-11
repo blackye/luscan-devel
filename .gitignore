@@ -72,3 +72,7 @@ htmlcov/
 
 #policy files
 /policy
+
+#ctags files
+cscope.files
+/tags
