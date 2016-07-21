@@ -23,7 +23,7 @@ from golismero.api.net.web_utils import parse_url, argument_query, get_request
 from golismero.api.plugin import TestingPlugin
 from golismero.api.text.wordlist import WordListLoader
 from golismero.api.text.text_utils import to_utf8
-
+import time
 from copy import copy
 
 def payload_muntants(url_info, payload = {}, bmethod = 'GET', exclude_cgi_suffix = ['css', 'js', 'jpeg', 'jpg', 'png', 'gif', 'svg', 'txt'],
@@ -78,16 +78,22 @@ def payload_muntants(url_info, payload = {}, bmethod = 'GET', exclude_cgi_suffix
         # TODO GET/POST param key need deal
         raise ValueError("GET/POST param key payload is not support!")
 
-    if bmethod == "GET":
-        m_resource_url_payload = URL(url = __.request_cgi, method = m_url_info.method, referer = m_url_info.referer, url_params= param_dict)
+    retry_cnt = 0
 
-    elif bmethod == "POST":
-        m_resource_url_payload = URL(url = __.request_cgi, method = m_url_info.method, referer = m_url_info.referer, post_params= param_dict)
+    while retry_cnt < 3:
+        if bmethod == "GET":
+            m_resource_url_payload = URL(url = __.request_cgi, method = m_url_info.method, referer = m_url_info.referer, url_params= param_dict)
 
-    try:
-        p = get_request(url = m_resource_url_payload, allow_redirects=False, use_cache = use_cache, timeout = timeout)
-        return p
+        elif bmethod == "POST":
+            m_resource_url_payload = URL(url = __.request_cgi, method = m_url_info.method, referer = m_url_info.referer, post_params= param_dict)
 
-    except NetworkException, e:
-        Logger.log_error_verbose("Error while processing %r: %s" % (m_resource_url_payload.url, str(e)))
-        return None
+        try:
+            p = get_request(url = m_resource_url_payload, allow_redirects=False, use_cache = use_cache, timeout = timeout)
+            return p
+
+        except NetworkException, e:
+            retry_cnt += 1
+            time.sleep(0.5)
+            Logger.log_error_verbose("Error while processing %r: %s" % (m_resource_url_payload.url, str(e)))
+
+    return None
