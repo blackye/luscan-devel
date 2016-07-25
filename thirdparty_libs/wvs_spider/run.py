@@ -12,6 +12,7 @@ __all__ = []
 
 import os, sys
 from os import path
+import redis
 
 here = path.split(path.abspath(__file__))[0]
 if not here:  # if it fails use cwd instead
@@ -26,6 +27,7 @@ if not parent in sys.path:
 
 from celery import Celery, platforms
 import sys, time, datetime, random, hashlib, urllib, requests
+from lib.config import REDIS_SERVER
 
 def start_wvs_spider_dispatch(target, cookie, Logger):
 	app = Celery()
@@ -57,7 +59,7 @@ def get_crawl_domain(url):
 		host = urllib.splitnport(urllib.splithost(__)[0])
 		return host[0]
 
-def wait_parse_result(keys):
+def wait_parse_result_by_redis(keys):
 	s = requests.session()
 	s.keep_alive = False
 	redis_url = 'http://172.16.203.129:7379/GET/'
@@ -68,7 +70,25 @@ def wait_parse_result(keys):
 			spider_json_content = spider_json['GET']
 			break
 		time.sleep(1)
-	return  spider_json_content
+	return spider_json_content 
+
+def wait_parse_result(keys):
+    pool = redis.ConnectionPool(host = REDIS_SERVER , port = 6379, db = 0)
+    r = redis.Redis(connection_pool = pool)
+    spider_json_content = None
+    while True:
+        #TODO timeout is need
+        try:
+            _ = r.get(keys)
+            if _ is not None:
+                spider_content = eval(_)
+                if isinstance(spider_content, dict) and spider_content.haskey('GET') and spider_content['GET'] is not None:
+                    spider_json_content = spider_content['GET']
+                    break
+        except Exception:
+            time.sleep(1)
+
+    return spider_json_content
 
 if __name__ == '__main__':
 	if len(sys.argv) == 3:

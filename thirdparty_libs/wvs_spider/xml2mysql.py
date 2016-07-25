@@ -22,6 +22,7 @@ MYSQL_PWD       = 'root'
 MYSQL_DB        = 'luscan_spider'
 
 CRAWL_FILENAME  = 'export.xml'
+REDIS_SERVER    = '10.133.6.20'
 
 class MySQLBase(object):
     u'''对MySQLdb常用函数进行封装的类'''
@@ -236,7 +237,7 @@ class CrawlXML(object):
          ------------
          push redis
         '''
-        pool = redis.ConnectionPool(host = '172.16.203.129', port = '6379', db =0)
+        pool = redis.ConnectionPool(host = REDIS_SERVER, port = '6379', db =0)
         redis_conn = redis.Redis(connection_pool = pool)
         redis_conn.set(self._parse_domain(), json.dumps(self.xml_object))
         
